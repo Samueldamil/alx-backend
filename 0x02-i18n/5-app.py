@@ -1,62 +1,79 @@
 #!/usr/bin/env python3
 """
-Module 5-app
+A Basic flask application
 """
-from flask import Flask, render_template, request, g
+from typing import (
+    Dict, Union
+)
+
+from flask import Flask
+from flask import g, request
+from flask import render_template
 from flask_babel import Babel
 
 
-users = {
-        1: {"name": "Balou", "locale": "fr", "timezone": "Europe/Paris"},
-        2: {"name": "Beyonce", "locale": "en", "timezone": "US/Central"},
-        3: {"name": "Spock", "locale": "kg", "timezone": "Vulcan"},
-        4: {"name": "Teletubby", "locale": None, "timezone": "Europe/London"},
-}
-
-
 class Config(object):
-    """i18n configuration"""
+    """
+    Application configuration class
+    """
     LANGUAGES = ['en', 'fr']
     BABEL_DEFAULT_LOCALE = 'en'
     BABEL_DEFAULT_TIMEZONE = 'UTC'
 
 
+# Instantiate the application object
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Wrap the application with Babel
 babel = Babel(app)
 
 
-@app.route("/", strict_slashes=False)
-def index():
-    """displays a basic hello world message"""
-    return render_template("5-index.html")
-
-
 @babel.localeselector
-def get_locale():
-    """Gets best fmatch locale according to request"""
-    locale = request.args.get('locale')
-    if locale and locale in app.config['LANGUAGES']:
+def get_locale() -> str:
+    """
+    Gets locale from request object
+    """
+    locale = request.args.get('locale', '').strip()
+    if locale and locale in Config.LANGUAGES:
         return locale
     return request.accept_languages.best_match(app.config['LANGUAGES'])
 
 
-def get_user():
-    """returns a given user"""
-    user_id = request.args.get('login_as')
+users = {
+    1: {"name": "Balou", "locale": "fr", "timezone": "Europe/Paris"},
+    2: {"name": "Beyonce", "locale": "en", "timezone": "US/Central"},
+    3: {"name": "Spock", "locale": "kg", "timezone": "Vulcan"},
+    4: {"name": "Teletubby", "locale": None, "timezone": "Europe/London"},
+}
 
-    if user_id is None:
-        return None
 
-    return users.get(int(user_id))
+def get_user(id) -> Union[Dict[str, Union[str, None]], None]:
+    """
+    Validate user login details
+    Args:
+        id (str): user id
+    Returns:
+        (Dict): user dictionary if id is valid else None
+    """
+    return users.get(int(id), 0)
 
 
 @app.before_request
 def before_request():
-    """sets a user object to flask.g"""
-    user = get_user()
-    g.user = user
+    """
+    Adds valid user to the global session object `g`
+    """
+    setattr(g, 'user', get_user(request.args.get('login_as', 0)))
 
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port="5000")
+@app.route('/', strict_slashes=False)
+def index() -> str:
+    """
+    Renders a basic html template
+    """
+    return render_template('5-index.html')
+
+
+if __name__ == '__main__':
+    app.run()
